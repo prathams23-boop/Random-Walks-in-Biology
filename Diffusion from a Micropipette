@@ -1,0 +1,281 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.special import erf
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+
+plt.rcParams['font.size'] = 10
+plt.rcParams['axes.labelsize'] = 11
+plt.rcParams['axes.titlesize'] = 12
+plt.rcParams['figure.facecolor'] = 'white'
+
+#  PARAMETERS 
+N = 1.0          # Total particles released
+t_fixed = 1.0    # Fixed time for spatial plots (seconds)
+i = 1.0          # Injection rate for pulse
+t0 = 1.0         # Pulse duration
+
+# Different diffusion coefficients (μm²/s for better visualization)
+D_values = [0.5, 1.0, 2.0, 5.0]
+D_labels = [
+    'D = 0.5 μm²/s (Large protein)',
+    'D = 1.0 μm²/s (Medium molecule)', 
+    'D = 2.0 μm²/s (Small molecule)',
+    'D = 5.0 μm²/s (Very small molecule)'
+]
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+
+# FIGURE 1: SPATIAL DISTRIBUTION AT FIXED TIME
+fig = plt.figure(figsize=(18, 10))
+fig.patch.set_facecolor('white')
+
+
+x = np.linspace(-8, 8, 150)
+y = np.linspace(-8, 8, 150)
+x_grid, y_grid = np.meshgrid(x, y)
+r_grid = np.sqrt(x_grid**2 + y_grid**2)
+
+
+for i_plot, (D, label) in enumerate(zip(D_values, D_labels)):
+    norm = N / ((4 * np.pi * D * t_fixed) ** (3/2))
+    C = norm * np.exp(-r_grid**2 / (4 * D * t_fixed))
+    
+    ax = fig.add_subplot(2, 4, i_plot+1, projection='3d')
+    
+    surf = ax.plot_surface(x_grid, y_grid, C, cmap='hot', 
+                          edgecolor='none', antialiased=True,
+                          vmin=0, vmax=C.max(), alpha=0.95,
+                          linewidth=0, shade=True, rcount=100, ccount=100)
+    
+    ax.set_title(label, fontsize=11, fontweight='bold', pad=10)
+    ax.set_xlabel('X (μm)', fontsize=9)
+    ax.set_ylabel('Y (μm)', fontsize=9)
+    ax.set_zlabel('Conc.', fontsize=9)
+    ax.tick_params(labelsize=7)
+    ax.view_init(elev=25, azim=45)
+    
+
+    ax.xaxis.pane.fill = False
+    ax.yaxis.pane.fill = False
+    ax.zaxis.pane.fill = False
+    ax.xaxis.pane.set_edgecolor('gray')
+    ax.yaxis.pane.set_edgecolor('gray')
+    ax.zaxis.pane.set_edgecolor('gray')
+    ax.xaxis.pane.set_alpha(0.3)
+    ax.yaxis.pane.set_alpha(0.3)
+    ax.zaxis.pane.set_alpha(0.3)
+    
+    ax.grid(True, alpha=0.2, color='gray', linestyle='-', linewidth=0.5)
+
+# Contour Plots (Bottom Row) with BLACK BACKGROUND 
+# Calculating appropriate fixed levels based on data range
+all_peaks = [N / ((4 * np.pi * D * t_fixed) ** (3/2)) for D in D_values]
+max_peak = max(all_peaks)
+fixed_levels = np.linspace(0, max_peak * 0.3, 20)
+
+for i_plot, (D, label) in enumerate(zip(D_values, D_labels)):
+    norm = N / ((4 * np.pi * D * t_fixed) ** (3/2))
+    C = norm * np.exp(-r_grid**2 / (4 * D * t_fixed))
+    
+    ax = fig.add_subplot(2, 4, i_plot+5)
+    ax.set_facecolor('black')
+    
+    
+    contour = ax.contourf(x_grid, y_grid, C, levels=fixed_levels, 
+                         cmap='hot', extend='max')
+    
+    ax.set_title(f'Top View: {label}', fontsize=11, fontweight='bold')
+    ax.set_xlabel('X (μm)', fontsize=9)
+    ax.set_ylabel('Y (μm)', fontsize=9)
+    ax.set_aspect('equal')
+    
+    
+    cbar = plt.colorbar(contour, ax=ax, fraction=0.046, pad=0.04)
+    cbar.ax.tick_params(labelsize=7)
+    
+    # Peak concentration annotation
+    ax.text(0.05, 0.95, f'Peak: {norm:.4f}', transform=ax.transAxes,
+            fontsize=9, verticalalignment='top', color='white',
+            bbox=dict(boxstyle='round', facecolor='black', 
+                     edgecolor='white', alpha=0.7, linewidth=1))
+
+plt.tight_layout()
+plt.show()
+
+# FIGURE 2: RADIAL PROFILES 
+fig2, ax = plt.subplots(figsize=(12, 7))
+
+r_line = np.linspace(0, 8, 300)
+
+# Linear scale
+for D, label, color in zip(D_values, D_labels, colors):
+    norm = N / ((4 * np.pi * D * t_fixed) ** (3/2))
+    C_line = norm * np.exp(-r_line**2 / (4 * D * t_fixed))
+    ax.plot(r_line, C_line, color=color, linewidth=3, label=label, alpha=0.85)
+    
+    # Marking characteristic length
+    char_length = np.sqrt(4 * D * t_fixed)
+    C_char = norm * np.exp(-1)
+    ax.plot(char_length, C_char, 'o', color=color, markersize=10, 
+             markeredgecolor='black', markeredgewidth=2, zorder=5)
+
+ax.set_xlabel('Radial Distance from Source (micrometers)', fontsize=12, fontweight='bold')
+ax.set_ylabel('Concentration (arbitrary units)', fontsize=12, fontweight='bold')
+ax.set_title(f'Radial Concentration Profiles at t = {t_fixed} s', 
+             fontsize=13, fontweight='bold')
+ax.legend(fontsize=10, framealpha=0.95, loc='upper right')
+ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.7)
+ax.set_xlim(0, 8)
+
+plt.tight_layout()
+plt.show()
+
+# FIGURE 3: TEMPORAL EVOLUTION AT FIXED DISTANCES 
+fig3 = plt.figure(figsize=(16, 10))
+t_array = np.linspace(0.1, 10, 300)
+distances = [1.0, 2.0, 3.0, 5.0]
+
+for idx, r_fixed in enumerate(distances):
+    ax = fig3.add_subplot(2, 2, idx+1)
+    
+    for D, label, color in zip(D_values, D_labels, colors):
+        C_time = []
+        for t_val in t_array:
+            norm = N / ((4 * np.pi * D * t_val) ** (3/2))
+            C = norm * np.exp(-r_fixed**2 / (4 * D * t_val))
+            C_time.append(C)
+        ax.plot(t_array, C_time, color=color, linewidth=3, label=label, alpha=0.85)
+    
+    ax.set_xlabel('Time (seconds)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Concentration', fontsize=11, fontweight='bold')
+    ax.set_title(f'Concentration vs Time at r = {r_fixed} μm', 
+                fontsize=12, fontweight='bold')
+    ax.legend(fontsize=9, framealpha=0.95)
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.7)
+
+fig3.suptitle('INSTANTANEOUS RELEASE: Temporal Evolution\n"Diffusion wave" arrives, peaks, and passes', 
+             fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.show()
+
+# FIGURE 4: PEAK CONCENTRATION DECAY 
+fig4, ax = plt.subplots(figsize=(12, 7))
+t_array_peak = np.linspace(0.1, 10, 300)
+
+# Linear scale only
+for D, label, color in zip(D_values, D_labels, colors):
+    C_peak = []
+    for t_val in t_array_peak:
+        norm = N / ((4 * np.pi * D * t_val) ** (3/2))
+        C_peak.append(norm)
+    ax.plot(t_array_peak, C_peak, color=color, linewidth=3, label=label, alpha=0.85)
+
+ax.set_xlabel('Time (seconds)', fontsize=12, fontweight='bold')
+ax.set_ylabel('Peak Concentration at Source (r=0)', fontsize=12, fontweight='bold')
+ax.set_title('Peak Concentration Decay Over Time\n(Decays as t^(-3/2))', fontsize=13, fontweight='bold')
+ax.legend(fontsize=10, framealpha=0.95)
+ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.7)
+
+plt.tight_layout()
+plt.show()
+
+# FIGURE 5: PULSE RELEASE SPATIAL 
+fig5 = plt.figure(figsize=(16, 10))
+times_pulse = [0.5, 1.0, 2.0, 5.0]
+r_line_pulse = np.linspace(0.01, 8, 300)
+
+for idx, t_pulse in enumerate(times_pulse):
+    ax = fig5.add_subplot(2, 2, idx+1)
+    
+    for D, label, color in zip(D_values, D_labels, colors):
+        C_pulse_line = []
+        C_ss_line = []
+        for r_val in r_line_pulse:
+            # Pulse release (Berg Eq 2.9)
+            if t_pulse <= t0:
+                C_val = (i / (4 * np.pi * D * r_val)) * erf(r_val / np.sqrt(4 * D * t_pulse))
+            else:
+                C_val = (i / (4 * np.pi * D * r_val)) * (
+                    erf(r_val / np.sqrt(4 * D * t_pulse)) - 
+                    erf(r_val / np.sqrt(4 * D * (t_pulse - t0)))
+                )
+            C_pulse_line.append(C_val)
+            
+            # Steady state (Berg Eq 2.11)
+            C_ss_line.append(i / (4 * np.pi * D * r_val))
+        
+        ax.plot(r_line_pulse, C_pulse_line, color=color, linewidth=3, 
+               label=label, alpha=0.85)
+        
+        if t_pulse > t0:
+            ax.plot(r_line_pulse, C_ss_line, ':', color=color, linewidth=2, alpha=0.4)
+    
+    ax.set_xlabel('Distance r (μm)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Concentration', fontsize=11, fontweight='bold')
+    title_str = f'Pulse at t = {t_pulse} s'
+    title_str += ' (during)' if t_pulse <= t0 else ' (after pulse)'
+    ax.set_title(title_str, fontsize=12, fontweight='bold')
+    ax.legend(fontsize=9, framealpha=0.95)
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.7)
+    ax.set_yscale('log')
+    ax.set_ylim([1e-3, 1e2])
+
+fig5.suptitle(f'PULSE RELEASE: Spatial Distribution (pulse duration = {t0} s)\nBerg Eq 2.9 with error functions', 
+             fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.show()
+
+# FIGURE 6: PULSE TEMPORAL EVOLUTION 
+fig6 = plt.figure(figsize=(16, 10))
+
+for idx, r_fixed in enumerate(distances):
+    ax = fig6.add_subplot(2, 2, idx+1)
+    
+    for D, label, color in zip(D_values, D_labels, colors):
+        C_time_pulse = []
+        for t_val in t_array:
+            if t_val <= t0:
+                C_val = (i / (4 * np.pi * D * r_fixed)) * erf(r_fixed / np.sqrt(4 * D * t_val))
+            else:
+                C_val = (i / (4 * np.pi * D * r_fixed)) * (
+                    erf(r_fixed / np.sqrt(4 * D * t_val)) - 
+                    erf(r_fixed / np.sqrt(4 * D * (t_val - t0)))
+                )
+            C_time_pulse.append(C_val)
+        
+        ax.plot(t_array, C_time_pulse, color=color, linewidth=3, label=label, alpha=0.85)
+        
+        # Steady state
+        C_ss_val = i / (4 * np.pi * D * r_fixed)
+        ax.axhline(C_ss_val, linestyle=':', color=color, linewidth=2, alpha=0.3)
+    
+    # Mark pulse end
+    ax.axvline(t0, color='red', linestyle='--', linewidth=2.5, alpha=0.7, 
+              label='Pulse ends', zorder=10)
+    ax.axvspan(0, t0, alpha=0.1, color='green')
+    
+    ax.set_xlabel('Time (s)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Concentration', fontsize=11, fontweight='bold')
+    ax.set_title(f'Pulse Evolution at r = {r_fixed} μm', fontsize=12, fontweight='bold')
+    ax.legend(fontsize=9, framealpha=0.95)
+    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.7)
+
+fig6.suptitle('PULSE RELEASE: Temporal Evolution\nBuilds during injection, decays after', 
+             fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.show()
+
+# Summary
+
+print("MICROPIPETTE DIFFUSION: Summary and Analysis")
+
+print(f"\nINSTANTANEOUS RELEASE (Berg Eq 2.8) at t = {t_fixed} s:\n")
+for D, label in zip(D_values, D_labels):
+    norm = N / ((4 * np.pi * D * t_fixed) ** (3/2))
+    char_length = np.sqrt(4 * D * t_fixed)
+    print(f"{label}")
+    print(f"  • Peak concentration at source: {norm:.6f}")
+    print(f"  • Characteristic spread √(4Dt): {char_length:.3f} μm")
+    print(f"  • Concentration at √(4Dt): {norm*np.exp(-1):.6f} (37% of peak)")
+    print()
+
