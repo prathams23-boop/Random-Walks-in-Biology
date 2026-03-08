@@ -1,0 +1,29 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Parameters
+C0 = 1.0   # bulk concentration
+a = 1.0    # sphere radius
+r = np.linspace(a, 5, 400)
+
+# Concentration profile
+C = C0 * (1 - a/r)
+
+# Plot concentration vs r
+plt.figure()
+plt.plot(r, C)
+plt.xlabel("Radial distance r")
+plt.ylabel("Concentration C(r)")
+plt.title("Steady-state diffusion to a spherical absorber")
+plt.show()
+
+# Radial flux magnitude
+D = 1.0
+J = D * C0 * a / r**2
+
+plt.figure()
+plt.plot(r, J)
+plt.xlabel("Radial distance r")
+plt.ylabel("Flux magnitude |J(r)|")
+plt.title("Radial flux toward spherical absorber")
+plt.show()
