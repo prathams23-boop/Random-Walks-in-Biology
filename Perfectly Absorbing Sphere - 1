@@ -1,0 +1,67 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# Physical parameters
+
+C0 = 1.0     # bulk concentration (reference)
+a = 1.0      # absorber radius
+D = 1.0      # diffusion coefficient
+
+
+# Spatial grid
+
+L = 5 * a
+n = 400
+x = np.linspace(-L, L, n)
+y = np.linspace(-L, L, n)
+X, Y = np.meshgrid(x, y)
+
+R = np.sqrt(X**2 + Y**2)
+
+
+# Concentration field
+
+C = C0 * (1 - a / R)
+C[R < a] = np.nan
+
+
+# Flux field (Fick's law)
+
+Jx = -D * C0 * a * X / R**3
+Jy = -D * C0 * a * Y / R**3
+Jx[R < a] = np.nan
+Jy[R < a] = np.nan
+
+
+# Plot
+
+fig, ax = plt.subplots(figsize=(7, 7))
+
+# Concentration colormap
+cf = ax.contourf(X, Y, C, levels=60)
+
+
+cbar = plt.colorbar(cf, ax=ax)
+cbar.set_ticks([])
+cbar.set_label("Increasing concentration")
+
+
+step = 20
+ax.quiver(X[::step, ::step],
+          Y[::step, ::step],
+          Jx[::step, ::step],
+          Jy[::step, ::step],
+          color='k', alpha=0.7)
+
+# Absorbing sphere
+circle = plt.Circle((0, 0), a, color='black')
+ax.add_patch(circle)
+
+# Formatting
+ax.set_aspect('equal', adjustable='datalim')
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.set_title("Diffusion to a perfectly absorbing sphere")
+
+plt.show()
